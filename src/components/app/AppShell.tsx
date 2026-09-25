@@ -3,6 +3,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { HelpCircle, LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
 import { navSections } from "./nav";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
 
 function SidebarBody({ collapsed, onNavigate }: { collapsed: boolean; onNavigate?: () => void }) {
   const path = useRouterState({ select: (s) => s.location.pathname });
@@ -48,18 +49,22 @@ function SidebarBody({ collapsed, onNavigate }: { collapsed: boolean; onNavigate
       </nav>
       <div className="space-y-1 border-t border-border px-3 py-3">
         {item("/help", "Help & Support", HelpCircle)}
-        <Link
-          to="/login"
-          onClick={onNavigate}
+        <button
+          type="button"
+          onClick={async () => {
+            onNavigate?.();
+            await supabase.auth.signOut();
+            window.location.replace("/login");
+          }}
           title={collapsed ? "Logout" : undefined}
           className={cn(
-            "flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive",
+            "flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted-foreground transition-colors hover:bg-destructive/15 hover:text-destructive",
             collapsed && "justify-center px-0",
           )}
         >
           <LogOut className="h-[18px] w-[18px]" />
           {!collapsed && <span>Logout</span>}
-        </Link>
+        </button>
       </div>
       <div className={cn("flex items-center gap-3 border-t border-border p-4", collapsed && "justify-center px-0")}>
         <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full btn-primary text-sm font-bold">SU</div>
