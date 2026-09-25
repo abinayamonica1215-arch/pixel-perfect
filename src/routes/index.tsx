@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   Sparkles,
   Users,
@@ -90,12 +90,12 @@ function Landing() {
             <a href="#features" className="transition-colors hover:text-foreground">Features</a>
             <a href="#how" className="transition-colors hover:text-foreground">How it works</a>
           </nav>
-          <a
-            href="#start"
+          <Link
+            to="/login"
             className="btn-primary rounded-full px-5 py-2 text-sm font-semibold"
           >
             Get Started
-          </a>
+          </Link>
         </div>
       </header>
 
@@ -116,12 +116,12 @@ function Landing() {
               that wins the room.
             </p>
             <div className="mt-9 flex flex-wrap gap-3">
-              <a
-                href="#start"
+              <Link
+                to="/login"
                 className="btn-primary inline-flex items-center gap-2 rounded-full px-7 py-3 text-sm font-semibold"
               >
                 Get Started <ArrowRight className="h-4 w-4" />
-              </a>
+              </Link>
               <a href="#features" className="btn-ghost rounded-full px-7 py-3 text-sm font-semibold">
                 Explore Hackathons
               </a>
