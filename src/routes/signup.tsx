@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
 import { useState, type FormEvent } from "react";
 import { AuthShell, Field, inputCls } from "@/components/AuthShell";
 
@@ -19,12 +20,14 @@ export const Route = createFileRoute("/signup")({
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function SignupPage() {
+  const navigate = useNavigate();
   const [f, setF] = useState({ name: "", email: "", password: "", confirm: "" });
   const [errors, setErrors] = useState<Partial<Record<"name" | "email" | "password" | "confirm", string>>>({});
-  const [done, setDone] = useState(false);
+  const [done, setDone] = useState<{ ok: boolean; text: string } | null>(null);
+  const [loading, setLoading] = useState(false);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     const er: Partial<Record<"name" | "email" | "password" | "confirm", string>> = {};
     if (!f.name.trim()) er.name = "Full name is required";
@@ -35,7 +38,25 @@ function SignupPage() {
     if (!f.confirm) er.confirm = "Please confirm your password";
     else if (f.confirm !== f.password) er.confirm = "Passwords do not match";
     setErrors(er);
-    setDone(Object.keys(er).length === 0);
+    setDone(null);
+    if (Object.keys(er).length) return;
+    setLoading(true);
+    const { data, error } = await supabase.auth.signUp({
+      email: f.email.trim(),
+      password: f.password,
+      options: { emailRedirectTo: window.location.origin, data: { full_name: f.name.trim() } },
+    });
+    setLoading(false);
+    if (error) {
+      setDone({ ok: false, text: error.message });
+      return;
+    }
+    if (!data.session) {
+      setDone({ ok: true, text: "Account created — check your email to confirm, then log in." });
+      return;
+    }
+    setDone({ ok: true, text: "Account created — redirecting to your dashboard…" });
+    setTimeout(() => navigate({ to: "/dashboard" }), 800);
   };
 
   return (
@@ -53,8 +74,8 @@ function SignupPage() {
         <Field id="confirm" label="Confirm password" error={errors.confirm}>
           <input id="confirm" type="password" autoComplete="new-password" maxLength={128} value={f.confirm} onChange={set("confirm")} placeholder="Repeat your password" className={inputCls} />
         </Field>
-        <button type="submit" className="btn-primary w-full rounded-full py-3 text-sm font-semibold">Create Account</button>
-        {done && <p className="text-center text-xs text-muted-foreground">Looks good — account creation will be enabled soon.</p>}
+        <button type="submit" disabled={loading} className="btn-primary w-full rounded-full py-3 text-sm font-semibold disabled:opacity-60">{loading ? "Creating account…" : "Create Account"}</button>
+        {done && <p className={`text-center text-xs ${done.ok ? "text-muted-foreground" : "text-destructive"}`}>{done.text}</p>}
       </form>
       <p className="mt-7 text-center text-sm text-muted-foreground">
         Already have an account?{" "}

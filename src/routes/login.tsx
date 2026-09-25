@@ -1,4 +1,5 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { supabase } from "@/integrations/supabase/client";
 import { useState, type FormEvent } from "react";
 import { Eye, EyeOff } from "lucide-react";
 import { AuthShell, Field, inputCls } from "@/components/AuthShell";
@@ -20,13 +21,15 @@ export const Route = createFileRoute("/login")({
 const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function LoginPage() {
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [show, setShow] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<"name" | "email" | "password" | "confirm", string>>>({});
-  const [done, setDone] = useState(false);
+  const [msg, setMsg] = useState<{ ok: boolean; text: string } | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const submit = (e: FormEvent) => {
+  const submit = async (e: FormEvent) => {
     e.preventDefault();
     const er: Partial<Record<"name" | "email" | "password" | "confirm", string>> = {};
     if (!email.trim()) er.email = "Email is required";
@@ -34,8 +37,19 @@ function LoginPage() {
     if (!password) er.password = "Password is required";
     else if (password.length < 8) er.password = "Password must be at least 8 characters";
     setErrors(er);
-    setDone(Object.keys(er).length === 0);
+    setMsg(null);
+    if (Object.keys(er).length) return;
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    setLoading(false);
+    if (error) {
+      setMsg({ ok: false, text: error.message === "Invalid login credentials" ? "Incorrect email or password." : error.message });
+      return;
+    }
+    setMsg({ ok: true, text: "Logged in — redirecting…" });
+    navigate({ to: "/dashboard" });
   };
+  const done = msg;
 
   return (
     <AuthShell title="Welcome back" subtitle="Log in to pick up where your team left off.">
@@ -54,8 +68,8 @@ function LoginPage() {
         <div className="flex justify-end">
           <button type="button" className="text-xs text-muted-foreground hover:text-foreground">Forgot password?</button>
         </div>
-        <button type="submit" className="btn-primary w-full rounded-full py-3 text-sm font-semibold">Login</button>
-        {done && <p className="text-center text-xs text-muted-foreground">Looks good — sign-in will be enabled soon.</p>}
+        <button type="submit" disabled={loading} className="btn-primary w-full rounded-full py-3 text-sm font-semibold disabled:opacity-60">{loading ? "Logging in…" : "Login"}</button>
+        {done && <p className={`text-center text-xs ${done.ok ? "text-muted-foreground" : "text-destructive"}`}>{done.text}</p>}
       </form>
       <p className="mt-7 text-center text-sm text-muted-foreground">
         Don't have an account?{" "}
