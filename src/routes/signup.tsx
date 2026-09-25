@@ -20,13 +20,13 @@ const emailRe = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 function SignupPage() {
   const [f, setF] = useState({ name: "", email: "", password: "", confirm: "" });
-  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errors, setErrors] = useState<Partial<Record<"name" | "email" | "password" | "confirm", string>>>({});
   const [done, setDone] = useState(false);
   const set = (k: keyof typeof f) => (e: React.ChangeEvent<HTMLInputElement>) => setF({ ...f, [k]: e.target.value });
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    const er: Record<string, string> = {};
+    const er: Partial<Record<"name" | "email" | "password" | "confirm", string>> = {};
     if (!f.name.trim()) er.name = "Full name is required";
     if (!f.email.trim()) er.email = "Email is required";
     else if (!emailRe.test(f.email.trim())) er.email = "Enter a valid email address";

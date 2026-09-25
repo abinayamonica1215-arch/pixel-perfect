@@ -28,7 +28,7 @@ export function AuthShell({ title, subtitle, children }: { title: string; subtit
   );
 }
 
-export function Field({ label, error, children, id }: { label: string; error?: string; children: ReactNode; id: string }) {
+export function Field({ label, error, children, id }: { label: string; error?: string | undefined; children: ReactNode; id: string }) {
   return (
     <div>
       <label htmlFor={id} className="mb-1.5 block text-sm font-medium">{label}</label>
