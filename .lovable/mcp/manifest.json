@@ -1,0 +1,87 @@
+{
+  "version": 1,
+  "sdk_version": "3.0.4",
+  "path": "/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://tccrixoiuxbczrbyksyr.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "pixel-perfect",
+      "version": "0.1.0",
+      "title": "Pixel Perfect"
+    },
+    "tools": [
+      {
+        "name": "get_profile",
+        "title": "Get my profile",
+        "description": "Read the signed-in user's Elevora profile (name, college, skills, links, bio).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "update_profile",
+        "title": "Update my profile",
+        "description": "Update fields on the signed-in user's Elevora profile; omitted fields stay unchanged.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {
+            "full_name": {
+              "description": "Full name",
+              "type": "string",
+              "maxLength": 100
+            },
+            "college": {
+              "description": "College or university",
+              "type": "string",
+              "maxLength": 150
+            },
+            "skills": {
+              "description": "Comma-separated skills",
+              "type": "string",
+              "maxLength": 500
+            },
+            "github_url": {
+              "description": "GitHub profile URL",
+              "type": "string",
+              "maxLength": 300
+            },
+            "portfolio_url": {
+              "description": "Portfolio URL",
+              "type": "string",
+              "maxLength": 300
+            },
+            "bio": {
+              "description": "Short bio",
+              "type": "string",
+              "maxLength": 1000
+            }
+          },
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}
