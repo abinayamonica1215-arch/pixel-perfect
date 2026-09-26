@@ -58,7 +58,7 @@ function ProfilePage() {
         .maybeSingle();
       if (error) setLoadError("Could not load your profile. Please refresh to try again.");
       else if (data) setF(data);
-      else setF({ ...empty, full_name: (u.user.user_metadata?.full_name as string) ?? "" });
+      else setF({ ...empty, full_name: (u.user.user_metadata?.["full_name"] as string) ?? "" });
       setLoading(false);
     })();
   }, []);
