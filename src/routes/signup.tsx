@@ -41,10 +41,12 @@ function SignupPage() {
     setDone(null);
     if (Object.keys(er).length) return;
     setLoading(true);
+    const nextRaw = new URLSearchParams(window.location.search).get("next");
+    const next = nextRaw && nextRaw.startsWith("/") && !nextRaw.startsWith("//") ? nextRaw : null;
     const { data, error } = await supabase.auth.signUp({
       email: f.email.trim(),
       password: f.password,
-      options: { emailRedirectTo: window.location.origin, data: { full_name: f.name.trim() } },
+      options: { emailRedirectTo: window.location.origin + (next ?? ""), data: { full_name: f.name.trim() } },
     });
     setLoading(false);
     if (error) {
@@ -56,7 +58,7 @@ function SignupPage() {
       return;
     }
     setDone({ ok: true, text: "Account created — redirecting to your dashboard…" });
-    setTimeout(() => navigate({ to: "/dashboard" }), 800);
+    setTimeout(() => (next ? (window.location.href = next) : navigate({ to: "/dashboard" })), 800);
   };
 
   return (

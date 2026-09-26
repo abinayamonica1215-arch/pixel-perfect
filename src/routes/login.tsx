@@ -47,6 +47,8 @@ function LoginPage() {
       return;
     }
     setMsg({ ok: true, text: "Logged in — redirecting…" });
+    const next = new URLSearchParams(window.location.search).get("next");
+    if (next && next.startsWith("/") && !next.startsWith("//")) { window.location.href = next; return; }
     navigate({ to: "/dashboard" });
   };
   const done = msg;
