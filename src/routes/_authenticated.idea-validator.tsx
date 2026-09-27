@@ -1,9 +1,145 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { Lightbulb } from "lucide-react";
-import { PlaceholderPage } from "@/components/app/AppShell";
+import { useState } from "react";
+import {
+  Lightbulb,
+  Sparkles,
+  Target,
+  Users,
+  Cpu,
+  Rocket,
+  ShieldCheck,
+  AlertTriangle,
+  TrendingUp,
+  Swords,
+  CheckCircle2,
+  Brain,
+  Loader2,
+  RefreshCw,
+  Info,
+} from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
 
 const title = "AI Idea Validator";
-const description = "Get instant AI feedback on the originality and feasibility of your ideas.";
+const description =
+  "Get instant AI feedback on the originality and feasibility of your ideas.";
+
+type Status = "idle" | "loading" | "error";
+
+interface FormState {
+  ideaName: string;
+  problemStatement: string;
+  solutionDescription: string;
+  targetUsers: string;
+  techPreferences: string;
+}
+
+const EMPTY_FORM: FormState = {
+  ideaName: "",
+  problemStatement: "",
+  solutionDescription: "",
+  targetUsers: "",
+  techPreferences: "",
+};
+
+const ANALYSIS_PILLARS = [
+  { icon: Sparkles, label: "Innovation", desc: "How original and differentiated your idea is." },
+  { icon: ShieldCheck, label: "Problem-Solution Fit", desc: "Whether your solution truly solves the stated problem." },
+  { icon: Rocket, label: "Feasibility", desc: "How realistic it is to build with available technology." },
+  { icon: Swords, label: "Competition", desc: "Existing alternatives and your competitive edge." },
+  { icon: CheckCircle2, label: "Suggested Features", desc: "Features worth considering to strengthen your product." },
+  { icon: Cpu, label: "Recommended Tech Stack", desc: "Technologies that fit your project best." },
+];
+
+function ScoreBar({ label, value, icon: Icon }: { label: string; value: number; icon: React.ComponentType<{ className?: string }> }) {
+  return (
+    <div>
+      <div className="mb-1.5 flex items-center justify-between text-sm">
+        <span className="flex items-center gap-2 font-medium">
+          <Icon className="h-4 w-4 text-primary" />
+          {label}
+        </span>
+        <span className="font-semibold text-foreground">{value}/100</span>
+      </div>
+      <div className="h-2.5 w-full overflow-hidden rounded-full bg-secondary">
+        <div
+          className="h-full rounded-full bg-gradient-to-r from-primary to-violet transition-all duration-700 ease-out"
+          style={{ width: `${value}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function ResultPlaceholder() {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-surface/40 px-6 py-16 text-center backdrop-blur">
+      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15 ring-1 ring-primary/30">
+        <Brain className="h-7 w-7 text-primary" />
+      </div>
+      <h3 className="mt-5 text-lg font-bold">Your validation report appears here</h3>
+      <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+        Fill in the form and run a validation to see innovation scores, risks, recommended features, and an AI summary.
+      </p>
+    </div>
+  );
+}
+
+function LoadingState() {
+  const steps = [
+    "Analyzing innovation potential…",
+    "Evaluating problem-solution fit…",
+    "Assessing feasibility…",
+    "Scanning competitive landscape…",
+    "Generating recommendations…",
+  ];
+  return (
+    <div className="flex flex-col items-center justify-center rounded-3xl border border-border bg-surface/50 px-6 py-16 text-center backdrop-blur">
+      <div className="relative flex h-16 w-16 items-center justify-center">
+        <div className="absolute inset-0 animate-ping rounded-2xl bg-primary/20" />
+        <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15 ring-1 ring-primary/30">
+          <Loader2 className="h-7 w-7 animate-spin text-primary" />
+        </div>
+      </div>
+      <h3 className="mt-6 text-lg font-bold">Validating your idea</h3>
+      <ul className="mt-5 space-y-2 text-left text-sm text-muted-foreground">
+        {steps.map((s, i) => (
+          <li key={s} className="flex items-center gap-2.5" style={{ animationDelay: `${i * 200}ms` }}>
+            <span className="flex h-5 w-5 items-center justify-center">
+              <span
+                className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary"
+                style={{ animationDelay: `${i * 200}ms` }}
+              />
+            </span>
+            {s}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ErrorState({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="flex flex-col items-center justify-center rounded-3xl border border-destructive/40 bg-destructive/10 px-6 py-16 text-center">
+      <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/15 ring-1 ring-destructive/30">
+        <AlertTriangle className="h-6 w-6 text-destructive" />
+      </div>
+      <h3 className="mt-5 text-lg font-bold">Validation failed</h3>
+      <p className="mt-2 max-w-sm text-sm text-muted-foreground">
+        We couldn't complete the analysis. Please check your connection and try again.
+      </p>
+      <Button onClick={onRetry} variant="outline" className="mt-5">
+        <RefreshCw className="h-4 w-4" />
+        Try again
+      </Button>
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/_authenticated/idea-validator")({
   head: () => ({
@@ -14,5 +150,317 @@ export const Route = createFileRoute("/_authenticated/idea-validator")({
       { property: "og:description", content: description },
     ],
   }),
-  component: () => <PlaceholderPage title={title} description={description} icon={Lightbulb} />,
+  component: IdeaValidatorPage,
 });
+
+function IdeaValidatorPage() {
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [status, setStatus] = useState<Status>("idle");
+  const [errorMsg, setErrorMsg] = useState<string>("");
+
+  const update = (field: keyof FormState, value: string) =>
+    setForm((f) => ({ ...f, [field]: value }));
+
+  const requiredFilled =
+    form.ideaName.trim() &&
+    form.problemStatement.trim() &&
+    form.solutionDescription.trim() &&
+    form.targetUsers.trim();
+
+  const handleValidate = () => {
+    if (!requiredFilled) return;
+    setStatus("loading");
+    setErrorMsg("");
+    // AI service will be connected here later. For now we only show the loading
+    // state briefly then return to idle so no fake results are displayed.
+    window.setTimeout(() => {
+      setStatus("idle");
+      setErrorMsg(
+        "AI validation isn't connected yet. This interface is ready for a real AI service to be wired in.",
+      );
+    }, 1800);
+  };
+
+  return (
+    <div className="space-y-8">
+      {/* Header */}
+      <div>
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 ring-1 ring-primary/30">
+            <Lightbulb className="h-5 w-5 text-primary" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-bold sm:text-4xl">{title}</h1>
+            <p className="mt-1 max-w-2xl text-muted-foreground">{description}</p>
+          </div>
+        </div>
+      </div>
+
+      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
+        {/* Input form */}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <Info className="h-4 w-4 text-primary" />
+              Idea details
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-5">
+            <div className="space-y-2">
+              <Label htmlFor="ideaName">
+                Project / Idea Name <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="ideaName"
+                placeholder="e.g. AI-Powered Study Planner"
+                value={form.ideaName}
+                onChange={(e) => update("ideaName", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="problemStatement">
+                Problem Statement <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="problemStatement"
+                placeholder="What problem does your idea solve? Who is affected by it?"
+                rows={4}
+                value={form.problemStatement}
+                onChange={(e) => update("problemStatement", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="solutionDescription">
+                Solution Description <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="solutionDescription"
+                placeholder="How does your idea solve the problem? What does it do?"
+                rows={4}
+                value={form.solutionDescription}
+                onChange={(e) => update("solutionDescription", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="targetUsers">
+                Target Users <span className="text-destructive">*</span>
+              </Label>
+              <Textarea
+                id="targetUsers"
+                placeholder="Who will use this? Students, developers, small businesses…"
+                rows={3}
+                value={form.targetUsers}
+                onChange={(e) => update("targetUsers", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="techPreferences">
+                Technology Preferences <span className="text-muted-foreground font-normal">(optional)</span>
+              </Label>
+              <Input
+                id="techPreferences"
+                placeholder="e.g. React, Python, Supabase, mobile-first"
+                value={form.techPreferences}
+                onChange={(e) => update("techPreferences", e.target.value)}
+              />
+            </div>
+
+            <Button
+              onClick={handleValidate}
+              disabled={!requiredFilled || status === "loading"}
+              size="lg"
+              className="btn-primary w-full"
+            >
+              {status === "loading" ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Validating…
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Validate My Idea
+                </>
+              )}
+            </Button>
+
+            {!requiredFilled && status !== "loading" && (
+              <p className="text-center text-xs text-muted-foreground">
+                Fill in all required fields to enable validation.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+
+        {/* Results / empty state */}
+        <div className="space-y-6">
+          {status === "loading" ? (
+            <LoadingState />
+          ) : status === "error" ? (
+            <ErrorState onRetry={() => setStatus("idle")} />
+          ) : (
+            <>
+              {/* Empty state — what Elevora analyzes */}
+              <Card className="glass-card">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2 text-lg">
+                    <Target className="h-4 w-4 text-primary" />
+                    What Elevora analyzes
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <div className="grid gap-4 sm:grid-cols-2">
+                    {ANALYSIS_PILLARS.map((p) => (
+                      <div
+                        key={p.label}
+                        className="flex gap-3 rounded-xl border border-border bg-surface/40 p-4 transition-colors hover:border-primary/40"
+                      >
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15">
+                          <p.icon className="h-4 w-4 text-primary" />
+                        </div>
+                        <div>
+                          <p className="text-sm font-semibold">{p.label}</p>
+                          <p className="mt-0.5 text-xs text-muted-foreground">{p.desc}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+
+              {errorMsg && (
+                <div className="flex items-start gap-3 rounded-xl border border-border bg-accent/30 p-4 text-sm text-muted-foreground">
+                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span>{errorMsg}</span>
+                </div>
+              )}
+
+              {/* Results layout preview */}
+              <ResultPlaceholder />
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Results layout reference (always rendered, shows structure) */}
+      {status === "idle" && !errorMsg && (
+        <div className="space-y-6">
+          <h2 className="text-xl font-bold">Results preview</h2>
+          <p className="text-sm text-muted-foreground">
+            When validation completes, your report will appear in the layout below.
+          </p>
+          <div className="grid gap-6 md:grid-cols-2">
+            {/* Score cards */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <TrendingUp className="h-4 w-4 text-primary" />
+                  Scores
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <ScoreBar label="Innovation Score" value={0} icon={Sparkles} />
+                <ScoreBar label="Feasibility Score" value={0} icon={Rocket} />
+                <ScoreBar label="Problem-Solution Fit Score" value={0} icon={ShieldCheck} />
+              </CardContent>
+            </Card>
+
+            {/* Competition */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Swords className="h-4 w-4 text-primary" />
+                  Competition Analysis
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Competitor landscape and your differentiators will appear here.
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Strengths */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <CheckCircle2 className="h-4 w-4 text-primary" />
+                  Strengths
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Key advantages of your idea will be listed here.
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Risks */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <AlertTriangle className="h-4 w-4 text-primary" />
+                  Potential Risks
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Risks and challenges to watch out for will appear here.
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Suggested features */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                  Suggested Features
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Recommended features to strengthen your product will appear here.
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Tech stack */}
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2 text-base">
+                  <Cpu className="h-4 w-4 text-primary" />
+                  Recommended Tech Stack
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">
+                  Technologies that fit your project will be recommended here.
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Overall summary */}
+          <Card className="glass-card">
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base">
+                <Brain className="h-4 w-4 text-primary" />
+                Overall AI Summary
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-sm text-muted-foreground">
+                A comprehensive AI-generated summary and verdict will appear here once validation is complete.
+              </p>
+            </CardContent>
+          </Card>
+        </div>
+      )}
+    </div>
+  );
+}
