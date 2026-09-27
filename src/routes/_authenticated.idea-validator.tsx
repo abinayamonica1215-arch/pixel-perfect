@@ -3,8 +3,6 @@ import { useState } from "react";
 import {
   Lightbulb,
   Sparkles,
-  Target,
-  Users,
   Cpu,
   Rocket,
   ShieldCheck,
@@ -15,20 +13,21 @@ import {
   Brain,
   Loader2,
   RefreshCw,
-  Info,
+  Pencil,
+  Target,
+  Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
+import { Badge } from "@/components/ui/badge";
 
 const title = "AI Idea Validator";
-const description =
-  "Get instant AI feedback on the originality and feasibility of your ideas.";
+const description = "Validate your hackathon idea before you build.";
 
-type Status = "idle" | "loading" | "error";
+type Status = "idle" | "loading" | "error" | "results";
 
 interface FormState {
   ideaName: string;
@@ -46,14 +45,43 @@ const EMPTY_FORM: FormState = {
   techPreferences: "",
 };
 
-const ANALYSIS_PILLARS = [
-  { icon: Sparkles, label: "Innovation", desc: "How original and differentiated your idea is." },
-  { icon: ShieldCheck, label: "Problem-Solution Fit", desc: "Whether your solution truly solves the stated problem." },
-  { icon: Rocket, label: "Feasibility", desc: "How realistic it is to build with available technology." },
-  { icon: Swords, label: "Competition", desc: "Existing alternatives and your competitive edge." },
-  { icon: CheckCircle2, label: "Suggested Features", desc: "Features worth considering to strengthen your product." },
-  { icon: Cpu, label: "Recommended Tech Stack", desc: "Technologies that fit your project best." },
-];
+function ScoreRing({ value, label, icon: Icon }: { value: number; label: string; icon: React.ComponentType<{ className?: string }> }) {
+  const radius = 34;
+  const circ = 2 * Math.PI * radius;
+  const offset = circ - (value / 100) * circ;
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <div className="relative h-24 w-24">
+        <svg className="h-full w-full -rotate-90" viewBox="0 0 80 80">
+          <circle cx="40" cy="40" r={radius} fill="none" stroke="currentColor" strokeWidth="6" className="text-secondary" />
+          <circle
+            cx="40"
+            cy="40"
+            r={radius}
+            fill="none"
+            stroke="url(#scoreGrad)"
+            strokeWidth="6"
+            strokeLinecap="round"
+            strokeDasharray={circ}
+            strokeDashoffset={offset}
+            className="transition-all duration-700 ease-out"
+          />
+          <defs>
+            <linearGradient id="scoreGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="var(--primary)" />
+              <stop offset="100%" stopColor="var(--violet)" />
+            </linearGradient>
+          </defs>
+        </svg>
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <Icon className="h-4 w-4 text-primary" />
+          <span className="mt-0.5 text-lg font-bold">{value}</span>
+        </div>
+      </div>
+      <span className="text-center text-xs font-medium text-muted-foreground">{label}</span>
+    </div>
+  );
+}
 
 function ScoreBar({ label, value, icon: Icon }: { label: string; value: number; icon: React.ComponentType<{ className?: string }> }) {
   return (
@@ -75,40 +103,26 @@ function ScoreBar({ label, value, icon: Icon }: { label: string; value: number; 
   );
 }
 
-function ResultPlaceholder() {
-  return (
-    <div className="flex flex-col items-center justify-center rounded-3xl border border-dashed border-border bg-surface/40 px-6 py-16 text-center backdrop-blur">
-      <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15 ring-1 ring-primary/30">
-        <Brain className="h-7 w-7 text-primary" />
-      </div>
-      <h3 className="mt-5 text-lg font-bold">Your validation report appears here</h3>
-      <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-        Fill in the form and run a validation to see innovation scores, risks, recommended features, and an AI summary.
-      </p>
-    </div>
-  );
-}
-
 function LoadingState() {
   const steps = [
-    "Analyzing innovation potential…",
+    "Analyzing your idea…",
     "Evaluating problem-solution fit…",
     "Assessing feasibility…",
     "Scanning competitive landscape…",
     "Generating recommendations…",
   ];
   return (
-    <div className="flex flex-col items-center justify-center rounded-3xl border border-border bg-surface/50 px-6 py-16 text-center backdrop-blur">
+    <div className="flex flex-col items-center justify-center rounded-3xl border border-border bg-surface/50 px-6 py-20 text-center backdrop-blur">
       <div className="relative flex h-16 w-16 items-center justify-center">
         <div className="absolute inset-0 animate-ping rounded-2xl bg-primary/20" />
         <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-primary/15 ring-1 ring-primary/30">
           <Loader2 className="h-7 w-7 animate-spin text-primary" />
         </div>
       </div>
-      <h3 className="mt-6 text-lg font-bold">Validating your idea</h3>
+      <h3 className="mt-6 text-lg font-bold">Analyzing your idea…</h3>
       <ul className="mt-5 space-y-2 text-left text-sm text-muted-foreground">
         {steps.map((s, i) => (
-          <li key={s} className="flex items-center gap-2.5" style={{ animationDelay: `${i * 200}ms` }}>
+          <li key={s} className="flex items-center gap-2.5">
             <span className="flex h-5 w-5 items-center justify-center">
               <span
                 className="h-1.5 w-1.5 animate-pulse rounded-full bg-primary"
@@ -125,7 +139,7 @@ function LoadingState() {
 
 function ErrorState({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="flex flex-col items-center justify-center rounded-3xl border border-destructive/40 bg-destructive/10 px-6 py-16 text-center">
+    <div className="flex flex-col items-center justify-center rounded-3xl border border-destructive/40 bg-destructive/10 px-6 py-20 text-center">
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/15 ring-1 ring-destructive/30">
         <AlertTriangle className="h-6 w-6 text-destructive" />
       </div>
@@ -137,6 +151,132 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
         <RefreshCw className="h-4 w-4" />
         Try again
       </Button>
+    </div>
+  );
+}
+
+function ResultsLayout() {
+  return (
+    <div className="space-y-6">
+      {/* Overall score + score rings */}
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-lg">
+            <Gauge className="h-5 w-5 text-primary" />
+            Validation Report
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-6 sm:grid-cols-4">
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-surface/40 p-4">
+              <ScoreRing value={0} label="Overall Score" icon={Gauge} />
+            </div>
+            <div className="grid grid-cols-1 gap-4 sm:col-span-3 sm:grid-cols-3">
+              <ScoreRing value={0} label="Innovation" icon={Sparkles} />
+              <ScoreRing value={0} label="Feasibility" icon={Rocket} />
+              <ScoreRing value={0} label="Problem-Solution Fit" icon={ShieldCheck} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-6 md:grid-cols-2">
+        {/* Competition Analysis */}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Swords className="h-4 w-4 text-primary" />
+              Competition Analysis
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              The competitive landscape and your differentiators will appear here.
+            </p>
+          </CardContent>
+        </Card>
+
+        {/* Strengths */}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <CheckCircle2 className="h-4 w-4 text-primary" />
+              Strengths
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="border-primary/30 bg-primary/10 text-foreground">
+                Strength highlights appear here
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Risks / Gaps */}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <AlertTriangle className="h-4 w-4 text-primary" />
+              Risks / Gaps
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-foreground">
+                Potential risks appear here
+              </Badge>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Suggested Features */}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="h-4 w-4 text-primary" />
+              Suggested Features
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="secondary">Feature recommendations appear here</Badge>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Recommended Tech Stack */}
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Cpu className="h-4 w-4 text-primary" />
+            Recommended Tech Stack
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-2">
+            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-foreground">
+              Technology recommendations appear here
+            </Badge>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* AI Summary / Verdict */}
+      <Card className="glass-card">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Brain className="h-4 w-4 text-primary" />
+            AI Summary / Verdict
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground">
+            A comprehensive AI-generated summary and verdict will appear here once validation is complete.
+          </p>
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -156,56 +296,78 @@ export const Route = createFileRoute("/_authenticated/idea-validator")({
 function IdeaValidatorPage() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [status, setStatus] = useState<Status>("idle");
-  const [errorMsg, setErrorMsg] = useState<string>("");
+  const [touched, setTouched] = useState(false);
 
   const update = (field: keyof FormState, value: string) =>
     setForm((f) => ({ ...f, [field]: value }));
 
-  const requiredFilled =
-    form.ideaName.trim() &&
-    form.problemStatement.trim() &&
-    form.solutionDescription.trim() &&
-    form.targetUsers.trim();
+  const requiredFields: { key: keyof FormState; label: string }[] = [
+    { key: "ideaName", label: "Idea name" },
+    { key: "problemStatement", label: "Problem statement" },
+    { key: "solutionDescription", label: "Solution description" },
+    { key: "targetUsers", label: "Target users" },
+  ];
+
+  const missing = requiredFields.filter((f) => !form[f.key].trim());
+  const requiredFilled = missing.length === 0;
 
   const handleValidate = () => {
+    setTouched(true);
     if (!requiredFilled) return;
     setStatus("loading");
-    setErrorMsg("");
-    // AI service will be connected here later. For now we only show the loading
-    // state briefly then return to idle so no fake results are displayed.
+    // AI service will be connected here later. For now we only show the
+    // loading state briefly, then surface a clear notice — no fake results.
     window.setTimeout(() => {
-      setStatus("idle");
-      setErrorMsg(
-        "AI validation isn't connected yet. This interface is ready for a real AI service to be wired in.",
-      );
+      setStatus("error");
     }, 1800);
+  };
+
+  const handleEdit = () => {
+    setStatus("idle");
+    setTouched(false);
+  };
+
+  const handleNewIdea = () => {
+    setForm(EMPTY_FORM);
+    setStatus("idle");
+    setTouched(false);
   };
 
   return (
     <div className="space-y-8">
       {/* Header */}
-      <div>
-        <div className="flex items-center gap-3">
-          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 ring-1 ring-primary/30">
-            <Lightbulb className="h-5 w-5 text-primary" />
-          </div>
-          <div>
-            <h1 className="text-3xl font-bold sm:text-4xl">{title}</h1>
-            <p className="mt-1 max-w-2xl text-muted-foreground">{description}</p>
-          </div>
+      <div className="flex items-center gap-3">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-primary/15 ring-1 ring-primary/30">
+          <Lightbulb className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h1 className="text-3xl font-bold sm:text-4xl">{title}</h1>
+          <p className="mt-1 text-muted-foreground">{description}</p>
         </div>
       </div>
 
-      <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-        {/* Input form */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Info className="h-4 w-4 text-primary" />
-              Idea details
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-5">
+      {status === "loading" ? (
+        <LoadingState />
+      ) : status === "error" ? (
+        <ErrorState onRetry={() => setStatus("idle")} />
+      ) : status === "results" ? (
+        <div className="space-y-6">
+          <ResultsLayout />
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <Button onClick={handleNewIdea} variant="default" className="btn-primary">
+              <RefreshCw className="h-4 w-4" />
+              Validate Another Idea
+            </Button>
+            <Button onClick={handleEdit} variant="outline" className="btn-ghost">
+              <Pencil className="h-4 w-4" />
+              Edit Idea
+            </Button>
+          </div>
+        </div>
+      ) : (
+        /* Input form — initial state, clean and focused */
+        <Card className="glass-card mx-auto max-w-2xl">
+          <CardContent className="space-y-5 p-6 sm:p-8">
             <div className="space-y-2">
               <Label htmlFor="ideaName">
                 Project / Idea Name <span className="text-destructive">*</span>
@@ -259,7 +421,8 @@ function IdeaValidatorPage() {
 
             <div className="space-y-2">
               <Label htmlFor="techPreferences">
-                Technology Preferences <span className="text-muted-foreground font-normal">(optional)</span>
+                Technology Preferences{" "}
+                <span className="font-normal text-muted-foreground">(optional)</span>
               </Label>
               <Input
                 id="techPreferences"
@@ -269,197 +432,23 @@ function IdeaValidatorPage() {
               />
             </div>
 
+            {touched && missing.length > 0 && (
+              <p className="text-sm text-destructive">
+                Please fill in: {missing.map((m) => m.label).join(", ")}.
+              </p>
+            )}
+
             <Button
               onClick={handleValidate}
-              disabled={!requiredFilled || status === "loading"}
+              disabled={!requiredFilled}
               size="lg"
               className="btn-primary w-full"
             >
-              {status === "loading" ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Validating…
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4" />
-                  Validate My Idea
-                </>
-              )}
+              <Sparkles className="h-4 w-4" />
+              Validate My Idea
             </Button>
-
-            {!requiredFilled && status !== "loading" && (
-              <p className="text-center text-xs text-muted-foreground">
-                Fill in all required fields to enable validation.
-              </p>
-            )}
           </CardContent>
         </Card>
-
-        {/* Results / empty state */}
-        <div className="space-y-6">
-          {status === "loading" ? (
-            <LoadingState />
-          ) : status === "error" ? (
-            <ErrorState onRetry={() => setStatus("idle")} />
-          ) : (
-            <>
-              {/* Empty state — what Elevora analyzes */}
-              <Card className="glass-card">
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2 text-lg">
-                    <Target className="h-4 w-4 text-primary" />
-                    What Elevora analyzes
-                  </CardTitle>
-                </CardHeader>
-                <CardContent>
-                  <div className="grid gap-4 sm:grid-cols-2">
-                    {ANALYSIS_PILLARS.map((p) => (
-                      <div
-                        key={p.label}
-                        className="flex gap-3 rounded-xl border border-border bg-surface/40 p-4 transition-colors hover:border-primary/40"
-                      >
-                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/15">
-                          <p.icon className="h-4 w-4 text-primary" />
-                        </div>
-                        <div>
-                          <p className="text-sm font-semibold">{p.label}</p>
-                          <p className="mt-0.5 text-xs text-muted-foreground">{p.desc}</p>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-
-              {errorMsg && (
-                <div className="flex items-start gap-3 rounded-xl border border-border bg-accent/30 p-4 text-sm text-muted-foreground">
-                  <Info className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-                  <span>{errorMsg}</span>
-                </div>
-              )}
-
-              {/* Results layout preview */}
-              <ResultPlaceholder />
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Results layout reference (always rendered, shows structure) */}
-      {status === "idle" && !errorMsg && (
-        <div className="space-y-6">
-          <h2 className="text-xl font-bold">Results preview</h2>
-          <p className="text-sm text-muted-foreground">
-            When validation completes, your report will appear in the layout below.
-          </p>
-          <div className="grid gap-6 md:grid-cols-2">
-            {/* Score cards */}
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <TrendingUp className="h-4 w-4 text-primary" />
-                  Scores
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <ScoreBar label="Innovation Score" value={0} icon={Sparkles} />
-                <ScoreBar label="Feasibility Score" value={0} icon={Rocket} />
-                <ScoreBar label="Problem-Solution Fit Score" value={0} icon={ShieldCheck} />
-              </CardContent>
-            </Card>
-
-            {/* Competition */}
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Swords className="h-4 w-4 text-primary" />
-                  Competition Analysis
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Competitor landscape and your differentiators will appear here.
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Strengths */}
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <CheckCircle2 className="h-4 w-4 text-primary" />
-                  Strengths
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Key advantages of your idea will be listed here.
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Risks */}
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <AlertTriangle className="h-4 w-4 text-primary" />
-                  Potential Risks
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Risks and challenges to watch out for will appear here.
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Suggested features */}
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  Suggested Features
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Recommended features to strengthen your product will appear here.
-                </p>
-              </CardContent>
-            </Card>
-
-            {/* Tech stack */}
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Cpu className="h-4 w-4 text-primary" />
-                  Recommended Tech Stack
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-sm text-muted-foreground">
-                  Technologies that fit your project will be recommended here.
-                </p>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Overall summary */}
-          <Card className="glass-card">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Brain className="h-4 w-4 text-primary" />
-                Overall AI Summary
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">
-                A comprehensive AI-generated summary and verdict will appear here once validation is complete.
-              </p>
-            </CardContent>
-          </Card>
-        </div>
       )}
     </div>
   );
