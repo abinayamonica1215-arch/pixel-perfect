@@ -7,14 +7,12 @@ import {
   Rocket,
   ShieldCheck,
   AlertTriangle,
-  TrendingUp,
   Swords,
   CheckCircle2,
   Brain,
   Loader2,
   RefreshCw,
   Pencil,
-  Target,
   Gauge,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,6 +21,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { validateIdea } from "@/lib/idea-validator/validate-idea.functions";
+import type { IdeaValidatorResult } from "@/lib/idea-validator/schema";
 
 const title = "AI Idea Validator";
 const description = "Validate your hackathon idea before you build.";
@@ -137,15 +137,15 @@ function LoadingState() {
   );
 }
 
-function ErrorState({ onRetry }: { onRetry: () => void }) {
+function ErrorState({ message, onRetry }: { message?: string; onRetry: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center rounded-3xl border border-destructive/40 bg-destructive/10 px-6 py-20 text-center">
       <div className="flex h-14 w-14 items-center justify-center rounded-2xl bg-destructive/15 ring-1 ring-destructive/30">
         <AlertTriangle className="h-6 w-6 text-destructive" />
       </div>
       <h3 className="mt-5 text-lg font-bold">Validation failed</h3>
-      <p className="mt-2 max-w-sm text-sm text-muted-foreground">
-        We couldn't complete the analysis. Please check your connection and try again.
+      <p className="mt-2 max-w-md text-sm text-muted-foreground">
+        {message || "We couldn't complete the analysis. Please check your connection and try again."}
       </p>
       <Button onClick={onRetry} variant="outline" className="mt-5">
         <RefreshCw className="h-4 w-4" />
@@ -155,7 +155,7 @@ function ErrorState({ onRetry }: { onRetry: () => void }) {
   );
 }
 
-function ResultsLayout() {
+function ResultsLayout({ result }: { result: IdeaValidatorResult }) {
   return (
     <div className="space-y-6">
       {/* Overall score + score rings */}
@@ -169,12 +169,12 @@ function ResultsLayout() {
         <CardContent>
           <div className="grid gap-6 sm:grid-cols-4">
             <div className="flex flex-col items-center justify-center rounded-2xl border border-border bg-surface/40 p-4">
-              <ScoreRing value={0} label="Overall Score" icon={Gauge} />
+              <ScoreRing value={result.overallScore} label="Overall Score" icon={Gauge} />
             </div>
             <div className="grid grid-cols-1 gap-4 sm:col-span-3 sm:grid-cols-3">
-              <ScoreRing value={0} label="Innovation" icon={Sparkles} />
-              <ScoreRing value={0} label="Feasibility" icon={Rocket} />
-              <ScoreRing value={0} label="Problem-Solution Fit" icon={ShieldCheck} />
+              <ScoreRing value={result.innovationScore} label="Innovation" icon={Sparkles} />
+              <ScoreRing value={result.feasibilityScore} label="Feasibility" icon={Rocket} />
+              <ScoreRing value={result.problemSolutionFitScore} label="Problem-Solution Fit" icon={ShieldCheck} />
             </div>
           </div>
         </CardContent>
@@ -189,10 +189,8 @@ function ResultsLayout() {
               Competition Analysis
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-3">
-            <p className="text-sm text-muted-foreground">
-              The competitive landscape and your differentiators will appear here.
-            </p>
+          <CardContent>
+            <p className="text-sm leading-relaxed text-foreground/90">{result.competitionAnalysis}</p>
           </CardContent>
         </Card>
 
@@ -205,11 +203,14 @@ function ResultsLayout() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="border-primary/30 bg-primary/10 text-foreground">
-                Strength highlights appear here
-              </Badge>
-            </div>
+            <ul className="space-y-2">
+              {result.strengths.map((item, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm">
+                  <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-primary" />
+                  <span className="text-foreground/90">{item}</span>
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
 
@@ -222,11 +223,14 @@ function ResultsLayout() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="flex flex-wrap gap-2">
-              <Badge variant="outline" className="border-destructive/30 bg-destructive/10 text-foreground">
-                Potential risks appear here
-              </Badge>
-            </div>
+            <ul className="space-y-2">
+              {result.risksAndGaps.map((item, i) => (
+                <li key={i} className="flex items-start gap-2 text-sm">
+                  <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+                  <span className="text-foreground/90">{item}</span>
+                </li>
+              ))}
+            </ul>
           </CardContent>
         </Card>
 
@@ -240,7 +244,9 @@ function ResultsLayout() {
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2">
-              <Badge variant="secondary">Feature recommendations appear here</Badge>
+              {result.suggestedFeatures.map((item, i) => (
+                <Badge key={i} variant="secondary">{item}</Badge>
+              ))}
             </div>
           </CardContent>
         </Card>
@@ -256,9 +262,11 @@ function ResultsLayout() {
         </CardHeader>
         <CardContent>
           <div className="flex flex-wrap gap-2">
-            <Badge variant="outline" className="border-primary/30 bg-primary/10 text-foreground">
-              Technology recommendations appear here
-            </Badge>
+            {result.recommendedTechStack.map((item, i) => (
+              <Badge key={i} variant="outline" className="border-primary/30 bg-primary/10 text-foreground">
+                {item}
+              </Badge>
+            ))}
           </div>
         </CardContent>
       </Card>
@@ -272,9 +280,7 @@ function ResultsLayout() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="text-sm text-muted-foreground">
-            A comprehensive AI-generated summary and verdict will appear here once validation is complete.
-          </p>
+          <p className="text-sm leading-relaxed text-foreground/90">{result.aiSummary}</p>
         </CardContent>
       </Card>
     </div>
@@ -297,6 +303,8 @@ function IdeaValidatorPage() {
   const [form, setForm] = useState<FormState>(EMPTY_FORM);
   const [status, setStatus] = useState<Status>("idle");
   const [touched, setTouched] = useState(false);
+  const [result, setResult] = useState<IdeaValidatorResult | null>(null);
+  const [errorMsg, setErrorMsg] = useState("");
 
   const update = (field: keyof FormState, value: string) =>
     setForm((f) => ({ ...f, [field]: value }));
@@ -311,15 +319,26 @@ function IdeaValidatorPage() {
   const missing = requiredFields.filter((f) => !form[f.key].trim());
   const requiredFilled = missing.length === 0;
 
-  const handleValidate = () => {
+  const handleValidate = async () => {
     setTouched(true);
     if (!requiredFilled) return;
     setStatus("loading");
-    // AI service will be connected here later. For now we only show the
-    // loading state briefly, then surface a clear notice — no fake results.
-    window.setTimeout(() => {
+    setErrorMsg("");
+    try {
+      const response = await validateIdea({ data: form });
+      if (response.ok) {
+        setResult(response.result);
+        setStatus("results");
+      } else {
+        setErrorMsg(response.error);
+        setStatus("error");
+      }
+    } catch (error) {
+      setErrorMsg(
+        error instanceof Error ? error.message : "An unexpected error occurred.",
+      );
       setStatus("error");
-    }, 1800);
+    }
   };
 
   const handleEdit = () => {
@@ -329,6 +348,7 @@ function IdeaValidatorPage() {
 
   const handleNewIdea = () => {
     setForm(EMPTY_FORM);
+    setResult(null);
     setStatus("idle");
     setTouched(false);
   };
@@ -349,10 +369,10 @@ function IdeaValidatorPage() {
       {status === "loading" ? (
         <LoadingState />
       ) : status === "error" ? (
-        <ErrorState onRetry={() => setStatus("idle")} />
-      ) : status === "results" ? (
+        <ErrorState message={errorMsg} onRetry={() => setStatus("idle")} />
+      ) : status === "results" && result ? (
         <div className="space-y-6">
-          <ResultsLayout />
+          <ResultsLayout result={result} />
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button onClick={handleNewIdea} variant="default" className="btn-primary">
               <RefreshCw className="h-4 w-4" />
