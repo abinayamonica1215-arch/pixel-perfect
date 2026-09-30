@@ -11,9 +11,11 @@ const errorMiddleware = createMiddleware().server(async ({ next }) => {
       throw error;
     }
     console.error(error);
-    return new Response(renderErrorPage(), {
+    const message =
+      error instanceof Error ? error.message : "An unexpected server error occurred.";
+    return new Response(JSON.stringify({ ok: false, error: message }), {
       status: 500,
-      headers: { "content-type": "text/html; charset=utf-8" },
+      headers: { "content-type": "application/json; charset=utf-8" },
     });
   }
 });
